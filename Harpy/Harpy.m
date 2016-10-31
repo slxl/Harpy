@@ -59,6 +59,8 @@ NSString * const HarpyLanguageVietnamese            = @"vi";
 
 @end
 
+static UIWindow *__sheetWindow = nil;
+
 @implementation Harpy
 
 #pragma mark - Initialization
@@ -89,11 +91,8 @@ NSString * const HarpyLanguageVietnamese            = @"vi";
 #pragma mark - Public
 
 - (void)checkVersion {
-    if (!_presentingViewController) {
-        NSLog(@"[Harpy]: Please make sure that you have set _presentationViewController before calling checkVersion, checkVersionDaily, or checkVersionWeekly.");
-    } else {
-        [self performVersionCheck];
-    }
+
+    [self performVersionCheck];
 }
 
 - (void)checkVersionDaily {
@@ -332,25 +331,35 @@ NSString * const HarpyLanguageVietnamese            = @"vi";
 
 - (void)showAlertController:(UIAlertController *)alertController {
 
-    if (_presentingViewController != nil) {
-        [_presentingViewController presentViewController:alertController animated:YES completion:nil];
-
-        if (_alertControllerTintColor) {
-            [alertController.view setTintColor:_alertControllerTintColor];
-        }
+    UIViewController *harpyRootViewController = [[UIViewController alloc] init];
+    harpyRootViewController.view = [[UIView alloc] initWithFrame:(CGRect) {{0.f, 0.f}, [[UIScreen mainScreen] bounds].size}];
+    
+    UIWindow *window = [[UIWindow alloc] initWithFrame:(CGRect) {{0.f, 0.f}, [[UIScreen mainScreen] bounds].size}];
+    window.backgroundColor = [UIColor clearColor];
+    window.windowLevel = UIWindowLevelStatusBar + 1;
+    window.alpha = 1.f;
+    window.rootViewController = harpyRootViewController;
+    [window makeKeyAndVisible];
+    
+    __sheetWindow = window;
+    
+    [harpyRootViewController presentViewController:alertController animated:YES completion:nil];
+    
+    if (_alertControllerTintColor) {
+        [alertController.view setTintColor:_alertControllerTintColor];
     }
-
+    
     if ([self.delegate respondsToSelector:@selector(harpyDidShowUpdateDialog)]){
         [self.delegate harpyDidShowUpdateDialog];
     }
 }
 
 - (UIAlertController *)createAlertController {
-
+    
     UIAlertController *alertController = [UIAlertController alertControllerWithTitle:_updateAvailableMessage
                                                                              message:_theNewVersionMessage
                                                                       preferredStyle:UIAlertControllerStyleAlert];
-
+    
     return alertController;
 }
 
@@ -358,10 +367,10 @@ NSString * const HarpyLanguageVietnamese            = @"vi";
     // Check what version the update is, major, minor or a patch
     NSArray *oldVersionComponents = [[self currentInstalledVersion] componentsSeparatedByString:@"."];
     NSArray *newVersionComponents = [currentAppStoreVersion componentsSeparatedByString: @"."];
-
+    
     BOOL oldVersionComponentIsProperFormat = (2 <= [oldVersionComponents count] && [oldVersionComponents count] <= 4);
     BOOL newVersionComponentIsProperFormat = (2 <= [newVersionComponents count] && [newVersionComponents count] <= 4);
-
+    
     if (oldVersionComponentIsProperFormat && newVersionComponentIsProperFormat) {
         if ([newVersionComponents[0] integerValue] > [oldVersionComponents[0] integerValue]) { // A.b.c.d
             if (_majorUpdateAlertType) _alertType = _majorUpdateAlertType;
@@ -378,7 +387,7 @@ NSString * const HarpyLanguageVietnamese            = @"vi";
 - (void)localizeAlertStringsForCurrentAppStoreVersion:(NSString *)currentAppStoreVersion {
     // Reference App's name
     _appName = _appName ? _appName : [[[NSBundle mainBundle] infoDictionary] objectForKey:(NSString *)kCFBundleNameKey];
-
+    
     // Force localization if _forceLanguageLocalization is set
     if (_forceLanguageLocalization) {
         _updateAvailableMessage = [self forcedLocalizedStringForKey:@"Update Available"];
@@ -420,6 +429,9 @@ NSString * const HarpyLanguageVietnamese            = @"vi";
     UIAlertAction *updateAlertAction = [UIAlertAction actionWithTitle:_updateButtonText
                                                                 style:UIAlertActionStyleDefault
                                                               handler:^(UIAlertAction *action) {
+                                                                  
+                                                                  __sheetWindow = nil;
+
                                                                   [self launchAppStore];
                                                               }];
     
@@ -430,6 +442,9 @@ NSString * const HarpyLanguageVietnamese            = @"vi";
     UIAlertAction *nextTimeAlertAction = [UIAlertAction actionWithTitle:_nextTimeButtonText
                                                                   style:UIAlertActionStyleDefault
                                                                 handler:^(UIAlertAction *action) {
+                                                                    
+                                                                    __sheetWindow = nil;
+
                                                                     if([self.delegate respondsToSelector:@selector(harpyUserDidCancel)]){
                                                                         [self.delegate harpyUserDidCancel];
                                                                     }
@@ -442,6 +457,9 @@ NSString * const HarpyLanguageVietnamese            = @"vi";
     UIAlertAction *skipAlertAction = [UIAlertAction actionWithTitle:_skipButtonText
                                                               style:UIAlertActionStyleDefault
                                                             handler:^(UIAlertAction *action) {
+                                                                
+                                                                __sheetWindow = nil;
+                                                                
                                                                 [[NSUserDefaults standardUserDefaults] setObject:_currentAppStoreVersion forKey:HarpyDefaultSkippedVersion];
                                                                 [[NSUserDefaults standardUserDefaults] synchronize];
                                                                 if([self.delegate respondsToSelector:@selector(harpyUserDidSkipVersion)]){
